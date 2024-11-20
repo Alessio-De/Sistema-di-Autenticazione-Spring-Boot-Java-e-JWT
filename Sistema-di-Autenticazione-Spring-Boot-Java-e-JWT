@@ -1,0 +1,168 @@
+// Struttura del Progetto
+/*
+auth-app/
+├── src/main/java/com/authapp
+│   ├── AuthApplication.java
+│   ├── config/
+│   │   ├── SecurityConfig.java
+│   │   └── JwtTokenProvider.java
+│   ├── controller/
+│   │   ├── AuthController.java
+│   │   └── UserController.java
+│   ├── dto/
+│   │   ├── UserDto.java
+│   │   ├── LoginRequest.java
+│   │   └── RegisterRequest.java
+│   ├── model/
+│   │   ├── User.java
+│   │   └── Role.java
+│   ├── repository/
+│   │   └── UserRepository.java
+│   ├── service/
+│   │   ├── UserService.java
+│   │   └── AuthService.java
+│   └── security/
+│       └── CustomUserDetailsService.java
+└── pom.xml
+*/
+
+// pom.xml - Dipendenze Principali
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <dependencies>
+        <!-- Spring Boot Starter -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        
+        <!-- Spring Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        
+        <!-- JWT Token -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.11.5</version>
+        </dependency>
+        
+        <!-- Database -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+    </dependencies>
+</project>
+
+// Model: User.java
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true, nullable = false)
+    private String username;
+    
+    @Column(nullable = false)
+    private String password;
+    
+    @ElementCollection(fetch = FetchType.EAGER)
+    private Set<Role> roles;
+}
+
+// Enum: Role.java
+public enum Role {
+    ROLE_USER,
+    ROLE_ADMIN,
+    ROLE_MODERATOR
+}
+
+// Repository: UserRepository.java
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByUsername(String username);
+    boolean existsByUsername(String username);
+}
+
+// Security Config: SecurityConfig.java
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+    
+    @Autowired
+    private CustomUserDetailsService userDetailsService;
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .anyRequest().authenticated()
+            )
+            .sessionManagement(session -> 
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .addFilterBefore(jwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
+    }
+}
+
+// JWT Token Provider: JwtTokenProvider.java
+@Component
+public class JwtTokenProvider {
+    private final String JWT_SECRET = "yourSecretKey123!@#";
+    
+    public String generateToken(Authentication authentication) {
+        // Logica generazione token JWT
+    }
+    
+    public boolean validateToken(String token) {
+        // Validazione token
+    }
+}
+
+// AuthController: Gestione Registrazione/Login
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+    
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody RegisterRequest registerRequest) {
+        // Registrazione nuovo utente
+    }
+    
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest) {
+        // Autenticazione e generazione token
+    }
+}
+
+// UserController: Esempio di Endpoint Protetto
+@RestController
+@RequestMapping("/users")
+public class UserController {
+    
+    @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getUserProfile() {
+        // Recupero profilo utente
+    }
+    
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getAdminPanel() {
+        // Solo admin può accedere
+    }
+}
